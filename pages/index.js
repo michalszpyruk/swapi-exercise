@@ -7,7 +7,7 @@ import FiltersList from '../components/FiltersList';
 const starshipsEndpoint = 'https://swapi.dev/api/starships';
 const filmsEndpoint = 'https://swapi.dev/api/films';
 
-export async function getServerSideProps() {
+export async function getStaticProps() {
   const [starshipsRes, filmsRes] = await Promise.all([
     fetch(starshipsEndpoint),
     fetch(filmsEndpoint)
