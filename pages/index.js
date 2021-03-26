@@ -1,65 +1,120 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import Head from 'next/head';
+import { Box, Input, Flex, Heading, Button, Center } from '@chakra-ui/react';
+import { useEffect, useState } from 'react';
+import StarshipsList from '../components/StarshipsList';
+import FiltersList from '../components/FiltersList';
 
-export default function Home() {
+const starshipsEndpoint = 'https://swapi.dev/api/starships';
+const filmsEndpoint = 'https://swapi.dev/api/films';
+
+export async function getServerSideProps() {
+  const [starshipsRes, filmsRes] = await Promise.all([
+    fetch(starshipsEndpoint),
+    fetch(filmsEndpoint)
+  ]);
+
+  const [starshipsData, filmsData] = await Promise.all([starshipsRes.json(), filmsRes.json()]);
+
+  return {
+    props: {
+      starshipsData,
+      filmsData
+    }
+  };
+}
+
+export default function Home({ starshipsData, filmsData }) {
+  const { previous, next, results: starshipsResults = [] } = starshipsData;
+
+  const [filter, setFilter] = useState(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [starships, setStarships] = useState(starshipsResults);
+
+  const [page, setPage] = useState({
+    ...{ next, previous },
+    current: starshipsEndpoint
+  });
+
+  const { current } = page;
+
+  useEffect(() => {
+    if (page === starshipsEndpoint) return;
+
+    async function fetchMore() {
+      const res = await fetch(current);
+      const nextData = await res.json();
+
+      setPage({
+        current,
+        ...nextData
+      });
+
+      if (!nextData.previous) {
+        setStarships(nextData.results);
+        return;
+      }
+
+      setStarships([...starships, ...nextData.results]);
+    }
+
+    fetchMore();
+  }, [current]);
+
+  const handleLoadMore = () =>
+    setPage((prev) => ({
+      ...prev,
+      current: page?.next
+    }));
+
+  const handleTextChange = (event) => setSearchInput(event.target.value);
+
+  const handleFilterMovie = (event) => setFilter(event.target.value);
+
+  const filteredStarships = [...starships].filter((starship) => {
+    if (filter) {
+      return (
+        starship.name.toLowerCase().includes(searchInput.toLowerCase()) &&
+        starship.films.includes(filter)
+      );
+    }
+
+    return starship.name.toLowerCase().includes(searchInput.toLowerCase());
+  });
+
   return (
-    <div className={styles.container}>
+    <>
       <Head>
-        <title>Create Next App</title>
+        <title>SWAPI | Starships</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
-  )
+      <Box width="100%" height="100%">
+        <Flex flexDirection="column">
+          <Flex justifyContent="flex-start" alignItems="center" flexDirection="column">
+            <Heading py={6}>SWAPI - Task</Heading>
+            <Input
+              width="80%"
+              size="lg"
+              variant="outline"
+              placeholder="Look for a starship..."
+              value={searchInput}
+              onChange={handleTextChange}
+            />
+            <FiltersList
+              clearFilters={() => setFilter()}
+              films={filmsData.results}
+              handleFilter={handleFilterMovie}
+              filter={filter}
+            />
+          </Flex>
+          <StarshipsList starships={filteredStarships} />
+          <Center py={6}>
+            <Button isDisabled={!page.next} onClick={handleLoadMore} variant="solid" width="180px">
+              Load more
+            </Button>
+          </Center>
+        </Flex>
+      </Box>
+    </>
+  );
 }
