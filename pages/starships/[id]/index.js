@@ -53,7 +53,6 @@ const index = ({ data }) => {
     }
   }, []);
 
-  console.log(data);
   return (
     <>
       <Head>
